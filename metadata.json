@@ -1,0 +1,5 @@
+{
+  "name": "Bonificação de Eletricistas",
+  "description": "Um aplicativo web para gerenciar o sistema de bonificação e comissões para eletricistas parceiros, baseado em registros de vendas mensais.",
+  "requestFramePermissions": []
+}
