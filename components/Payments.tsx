@@ -1,11 +1,12 @@
+
 import React, { useState, useMemo } from 'react';
 import type { Vendor, PaymentStatus } from '../types';
 
 interface PaymentsProps {
   vendors: Vendor[];
-  paymentStatusByVendor: Record<number, Record<string, PaymentStatus>>;
-  onRecordPayment: (vendorCod: number, month: string, amount: number, note: string) => void;
-  onSettleAll: (vendorCod: number, note: string) => void;
+  paymentStatusByVendor: Record<string, Record<string, PaymentStatus>>;
+  onRecordPayment: (vendorCod: string, month: string, amount: number, note: string) => void;
+  onSettleAll: (vendorCod: string, note: string) => void;
 }
 
 type ModalInfo = {

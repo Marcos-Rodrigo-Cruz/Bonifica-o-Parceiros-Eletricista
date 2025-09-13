@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import type { Vendor, Sale, PaymentStatus } from '../types';
 import { AddVendorModal } from './AddVendorModal';
@@ -5,10 +6,10 @@ import { AddVendorModal } from './AddVendorModal';
 interface DashboardProps {
   vendors: Vendor[];
   sales: Sale[];
-  salesByVendor: Record<number, Sale[]>;
-  paymentStatusByVendor: Record<number, Record<string, PaymentStatus>>;
+  salesByVendor: Record<string, Sale[]>;
+  paymentStatusByVendor: Record<string, Record<string, PaymentStatus>>;
   onSelectVendor: (vendor: Vendor) => void;
-  onAddVendor: (vendor: Omit<Vendor, 'cod'>) => void;
+  onAddVendor: (vendor: Vendor) => void;
 }
 
 const VendorCard: React.FC<{ vendor: Vendor; totalComissao: number; totalSaldo: number; onSelect: () => void; selectedMonth: string }> = ({ vendor, totalComissao, totalSaldo, onSelect, selectedMonth }) => {
@@ -23,9 +24,6 @@ const VendorCard: React.FC<{ vendor: Vendor; totalComissao: number; totalSaldo: 
                 <h3 className="text-xl font-bold text-weg-blue truncate">{vendor.nome}</h3>
                 <p className="text-sm text-weg-gray">COD: {vendor.cod}</p>
             </div>
-            <span className={`px-3 py-1 text-xs font-semibold rounded-full ${vendor.mesesElegibilidade === 'Todos' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                {vendor.mesesElegibilidade}
-            </span>
         </div>
         <div className="mt-4 border-t pt-4 grid grid-cols-2 gap-4">
             <div>

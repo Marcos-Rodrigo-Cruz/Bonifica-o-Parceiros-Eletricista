@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import type { Vendor, PaymentStatus } from '../types';
 
@@ -7,7 +8,7 @@ interface ReportsProps {
 }
 
 type PaymentHistoryRecord = {
-    vendorCod: number;
+    vendorCod: string;
     vendorName: string;
     month: string;
     amount: number;
@@ -56,7 +57,7 @@ export const Reports: React.FC<ReportsProps> = ({ vendors, paymentStatuses }) =>
         return vendors.reduce((acc, vendor) => {
             acc[vendor.cod] = vendor.nome;
             return acc;
-        }, {} as Record<number, string>);
+        }, {} as Record<string, string>);
     }, [vendors]);
 
     const allPayments: PaymentHistoryRecord[] = useMemo(() => {

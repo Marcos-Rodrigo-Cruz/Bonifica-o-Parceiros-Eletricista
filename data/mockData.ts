@@ -3,43 +3,39 @@ import { Vendor, Sale, PaymentStatus, PaymentSummary } from '../types';
 
 export const mockVendors: Vendor[] = [
   {
-    cod: 2472,
+    cod: "2472",
     nome: "DAVI DIAS FERNANDES",
     cpfCnpj: "764.071.101-06",
     telefone: "(63)99234-2605",
     pix: "764.071.101-06",
-    mesesElegibilidade: "FEV-25",
   },
   {
-    cod: 1685,
+    cod: "1685",
     nome: "ADRIANO PEREIRA CAVALCANTE",
     cpfCnpj: "123.456.789-10",
     telefone: "(63)98105-4232",
     pix: "63981054232",
-    mesesElegibilidade: "Todos",
   },
   {
-    cod: 3011,
+    cod: "3011",
     nome: "MARIA SILVA OLIVEIRA",
     cpfCnpj: "987.654.321-00",
     telefone: "(63)98877-6655",
     pix: "maria.oliveira@email.com",
-    mesesElegibilidade: "Todos",
   },
   {
-    cod: 4523,
+    cod: "4523",
     nome: "JOÃO COSTA PEREIRA",
     cpfCnpj: "456.123.789-55",
     telefone: "(63)97766-5544",
     pix: "joao.costa.pix",
-    mesesElegibilidade: "MAR-25",
   },
 ];
 
 export const mockSales: Sale[] = [
   {
     id: 1,
-    pesquisaId: 2472,
+    pesquisaId: "2472",
     vendedorResponsavel: "MARCOS",
     loja: 1,
     numeroVenda: "206951",
@@ -53,7 +49,7 @@ export const mockSales: Sale[] = [
   },
   {
     id: 2,
-    pesquisaId: 2472,
+    pesquisaId: "2472",
     vendedorResponsavel: "MARCOS",
     loja: 1,
     numeroVenda: "206952",
@@ -67,7 +63,7 @@ export const mockSales: Sale[] = [
   },
   {
     id: 3,
-    pesquisaId: 1685,
+    pesquisaId: "1685",
     vendedorResponsavel: "ANA",
     loja: 2,
     numeroVenda: "206953",
@@ -81,7 +77,7 @@ export const mockSales: Sale[] = [
   },
    {
     id: 4,
-    pesquisaId: 3011,
+    pesquisaId: "3011",
     vendedorResponsavel: "LUCAS",
     loja: 1,
     numeroVenda: "206954",
@@ -95,7 +91,7 @@ export const mockSales: Sale[] = [
   },
   {
     id: 5,
-    pesquisaId: 1685,
+    pesquisaId: "1685",
     vendedorResponsavel: "ANA",
     loja: 2,
     numeroVenda: "206955",
@@ -110,12 +106,12 @@ export const mockSales: Sale[] = [
 ];
 
 export const mockPaymentStatus: PaymentStatus[] = [
-    { mes: "JAN-25", cod: 2472, valorTotal: 72.45, valorPago: 72.45, saldo: 0, history: [] },
-    { mes: "JAN-25", cod: 1685, valorTotal: 98.81, valorPago: 0, saldo: 98.81, history: [] },
-    { mes: "JAN-25", cod: 3011, valorTotal: 10.00, valorPago: 10.00, saldo: 0, history: [] },
-    { mes: "FEV-25", cod: 1685, valorTotal: 9.60, valorPago: 0, saldo: 9.60, history: [] },
+    { mes: "JAN-25", cod: "2472", valorTotal: 72.45, valorPago: 72.45, saldo: 0, history: [] },
+    { mes: "JAN-25", cod: "1685", valorTotal: 98.81, valorPago: 0, saldo: 98.81, history: [] },
+    { mes: "JAN-25", cod: "3011", valorTotal: 10.00, valorPago: 10.00, saldo: 0, history: [] },
+    { mes: "FEV-25", cod: "1685", valorTotal: 9.60, valorPago: 0, saldo: 9.60, history: [] },
 ];
 
 export const mockPaymentSummaries: PaymentSummary[] = [
-    { cod: 1685, valorTotal: -111.19, observacoes: "Pegou um alicate de R$210,00" },
+    { cod: "1685", valorTotal: -111.19, observacoes: "Pegou um alicate de R$210,00" },
 ];

@@ -6,17 +6,16 @@ export interface PaymentRecord {
 }
 
 export interface Vendor {
-  cod: number;
+  cod: string;
   nome: string;
   cpfCnpj: string;
   telefone: string;
   pix: string;
-  mesesElegibilidade: string; // e.g., "FEV-25" or "Todos"
 }
 
 export interface Sale {
   id: number;
-  pesquisaId: number; // Foreign key to Vendor.cod
+  pesquisaId: string; // Foreign key to Vendor.cod
   vendedorResponsavel: string;
   loja: number;
   numeroVenda: string;
@@ -32,7 +31,7 @@ export interface Sale {
 
 export interface PaymentStatus {
   mes: string;
-  cod: number;
+  cod: string;
   valorTotal: number;
   valorPago: number;
   saldo: number;
@@ -40,7 +39,7 @@ export interface PaymentStatus {
 }
 
 export interface PaymentSummary {
-  cod: number;
+  cod: string;
   valorTotal: number;
   observacoes: string;
 }

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import type { Vendor, Sale, PaymentStatus, PaymentSummary, PaymentRecord } from './types';
 import { mockVendors, mockSales, mockPaymentStatus, mockPaymentSummaries } from './data/mockData';
@@ -21,7 +22,7 @@ const App: React.FC = () => {
       }
       acc[sale.pesquisaId].push(sale);
       return acc;
-    }, {} as Record<number, Sale[]>);
+    }, {} as Record<string, Sale[]>);
   }, [sales]);
 
   const paymentStatusByVendor = useMemo(() => {
@@ -31,14 +32,14 @@ const App: React.FC = () => {
       }
       acc[status.cod][status.mes] = status;
       return acc;
-    }, {} as Record<number, Record<string, PaymentStatus>>);
+    }, {} as Record<string, Record<string, PaymentStatus>>);
   }, [paymentStatuses]);
 
   const paymentSummaryByVendor = useMemo(() => {
     return paymentSummaries.reduce((acc, summary) => {
       acc[summary.cod] = summary;
       return acc;
-    }, {} as Record<number, PaymentSummary>);
+    }, {} as Record<string, PaymentSummary>);
   }, [paymentSummaries]);
 
   const handleSelectVendor = (vendor: Vendor | null) => {
@@ -73,12 +74,11 @@ const App: React.FC = () => {
     );
   };
 
-  const handleAddVendor = (newVendor: Omit<Vendor, 'cod'>) => {
-    const newCod = Math.max(...vendors.map(v => v.cod), 0) + 1;
-    setVendors(prev => [...prev, { ...newVendor, cod: newCod }]);
+  const handleAddVendor = (newVendor: Vendor) => {
+    setVendors(prev => [...prev, newVendor]);
   };
   
-  const handleRecordPayment = (vendorCod: number, month: string, amount: number, note: string) => {
+  const handleRecordPayment = (vendorCod: string, month: string, amount: number, note: string) => {
      setPaymentStatuses(prevStatuses => {
         return prevStatuses.map(status => {
             if (status.cod === vendorCod && status.mes === month) {
@@ -103,7 +103,7 @@ const App: React.FC = () => {
     });
   };
   
-  const handleSettleAll = (vendorCod: number, note: string) => {
+  const handleSettleAll = (vendorCod: string, note: string) => {
      setPaymentStatuses(prevStatuses => {
         return prevStatuses.map(status => {
             if (status.cod === vendorCod && status.saldo > 0) {
@@ -124,7 +124,7 @@ const App: React.FC = () => {
      })
   };
 
-  const handleUpdateObservation = (vendorCod: number, newObservation: string) => {
+  const handleUpdateObservation = (vendorCod: string, newObservation: string) => {
     setPaymentSummaries(prevSummaries => {
       const summaryExists = prevSummaries.some(s => s.cod === vendorCod);
       if (summaryExists) {
