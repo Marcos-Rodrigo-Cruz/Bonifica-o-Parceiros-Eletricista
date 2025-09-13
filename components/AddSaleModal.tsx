@@ -131,7 +131,10 @@ export const AddSaleModal: React.FC<AddSaleModalProps> = ({ isOpen, onClose, onS
                     </div>
                      <div>
                         <label htmlFor="loja" className="block text-sm font-medium text-gray-700">Loja</label>
-                        <input type="number" name="loja" id="loja" value={formData.loja} onChange={handleChange} required className={inputStyle}/>
+                        <select name="loja" id="loja" value={formData.loja} onChange={handleChange} required className={inputStyle}>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                        </select>
                     </div>
                 </div>
                 
