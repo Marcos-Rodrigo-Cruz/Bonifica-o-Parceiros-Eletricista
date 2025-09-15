@@ -14,13 +14,20 @@ interface VendorDetailProps {
   onAddSale: (newSale: Omit<Sale, 'id'>) => void;
   onUpdateSale: (saleId: number, updatedData: Partial<Omit<Sale, 'id' | 'pesquisaId'>>) => void;
   onUpdateObservation: (vendorCod: string, observation: string) => void;
+  onEdit: (vendor: Vendor) => void;
+  onDelete: (vendorCod: string) => void;
 }
 
-export const VendorDetail: React.FC<VendorDetailProps> = ({ vendor, sales, paymentStatus, paymentSummary, onBack, onAddSale, onUpdateSale, onUpdateObservation }) => {
+export const VendorDetail: React.FC<VendorDetailProps> = ({ vendor, sales, paymentStatus, paymentSummary, onBack, onAddSale, onUpdateSale, onUpdateObservation, onEdit, onDelete }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [saleToEdit, setSaleToEdit] = useState<Sale | null>(null);
   const [observation, setObservation] = useState(paymentSummary?.observacoes || '');
+
+  // State for Delete Confirmation Modal
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     setObservation(paymentSummary?.observacoes || '');
@@ -82,6 +89,21 @@ export const VendorDetail: React.FC<VendorDetailProps> = ({ vendor, sales, payme
     onUpdateObservation(vendor.cod, observation);
     alert('Observações salvas com sucesso!');
   };
+
+  const handleDeleteConfirm = () => {
+    if (deletePassword === '0000') {
+        onDelete(vendor.cod);
+        // The component will unmount, so no need to close modal here
+    } else {
+        setDeleteError('Senha incorreta. Ação negada.');
+    }
+  };
+
+  const closeDeleteModal = () => {
+      setIsDeleteModalOpen(false);
+      setDeletePassword('');
+      setDeleteError('');
+  }
 
   const SalesTable: React.FC<{ sales: Sale[] }> = ({ sales }) => (
     <div className="overflow-x-auto">
@@ -163,6 +185,37 @@ export const VendorDetail: React.FC<VendorDetailProps> = ({ vendor, sales, payme
         </div>
     </div>
   );
+  
+  const DeleteConfirmationModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+            <div className="p-6 border-b">
+                <h2 id="delete-modal-title" className="text-xl font-bold text-red-700">Confirmação de Exclusão</h2>
+            </div>
+             <form onSubmit={(e) => { e.preventDefault(); handleDeleteConfirm(); }}>
+                <div className="p-6 space-y-4">
+                    <p className="text-gray-600">Tem certeza que deseja excluir este parceiro? Essa ação não pode ser desfeita.</p>
+                    <div>
+                        <label htmlFor="delete-password" className="block text-sm font-medium text-gray-700">Digite a senha do administrador</label>
+                        <input
+                            type="password"
+                            id="delete-password"
+                            value={deletePassword}
+                            onChange={(e) => setDeletePassword(e.target.value)}
+                            className={`mt-1 block w-full bg-white text-black placeholder-gray-500 border ${deleteError ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500 transition`}
+                            autoFocus
+                        />
+                        {deleteError && <p className="mt-2 text-sm text-red-600">{deleteError}</p>}
+                    </div>
+                </div>
+                <div className="p-6 bg-gray-50 flex justify-end space-x-3">
+                    <button type="button" onClick={closeDeleteModal} className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">Cancelar</button>
+                    <button type="submit" className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-800">Confirmar Exclusão</button>
+                </div>
+             </form>
+        </div>
+    </div>
+  );
 
 
   return (
@@ -179,6 +232,7 @@ export const VendorDetail: React.FC<VendorDetailProps> = ({ vendor, sales, payme
         sale={saleToEdit}
        />
        {authModal.isOpen && <AuthModal />}
+       {isDeleteModalOpen && <DeleteConfirmationModal />}
 
       <button onClick={onBack} className="mb-6 flex items-center text-sm font-semibold text-weg-blue hover:underline">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -188,19 +242,28 @@ export const VendorDetail: React.FC<VendorDetailProps> = ({ vendor, sales, payme
       </button>
 
       <div className="bg-white rounded-xl shadow-lg p-6 md:p-8 mb-8 border border-gray-200">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-1">
+        <div className="flex flex-wrap justify-between items-center gap-4">
+             <div className="flex-1">
                 <h2 className="text-2xl font-bold text-weg-blue">{vendor.nome}</h2>
                 <p className="text-weg-gray">COD: {vendor.cod}</p>
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                    <div>
+                      <p className="font-medium text-gray-500">CPF/CNPJ</p>
+                      <p className="text-gray-800">{vendor.cpfCnpj}</p>
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-500">Telefone / PIX</p>
+                      <p className="text-gray-800">{vendor.telefone} / {vendor.pix}</p>
+                    </div>
+                </div>
             </div>
-            <div className="md:col-span-1">
-                <p className="text-sm font-medium text-gray-500">CPF/CNPJ</p>
-                <p className="text-gray-800">{vendor.cpfCnpj}</p>
-            </div>
-             <div className="md:col-span-1">
-                <p className="text-sm font-medium text-gray-500">Telefone / PIX</p>
-                <p className="text-gray-800">{vendor.telefone} / {vendor.pix}</p>
-            </div>
+            <button onClick={() => onEdit(vendor)} className="bg-white text-weg-blue font-bold py-2 px-4 rounded-lg border border-weg-blue hover:bg-blue-50 transition duration-300 flex items-center space-x-2 self-start">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+                  <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
+                </svg>
+                <span>Editar Cadastro</span>
+            </button>
         </div>
       </div>
       
@@ -288,6 +351,17 @@ export const VendorDetail: React.FC<VendorDetailProps> = ({ vendor, sales, payme
             </>
         )}
       </div>
+      
+      <div className="mt-8 p-6 bg-red-50 border border-red-200 rounded-xl">
+        <h3 className="text-xl font-bold text-red-800">Zona de Perigo</h3>
+        <div className="mt-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-red-700 text-sm flex-1">A exclusão de um parceiro é uma ação permanente e não pode ser desfeita. A exclusão só é permitida se o parceiro não tiver vendas registradas.</p>
+            <button onClick={() => setIsDeleteModalOpen(true)} className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition duration-300 w-full md:w-auto flex-shrink-0">
+                Excluir Parceiro
+            </button>
+        </div>
+    </div>
+
     </div>
   );
 };

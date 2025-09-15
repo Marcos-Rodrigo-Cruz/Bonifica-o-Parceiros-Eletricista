@@ -8,13 +8,27 @@ import { Payments } from './components/Payments';
 import { Reports } from './components/Reports';
 import { AuthModal } from './components/AuthModal';
 import { Settings } from './components/Settings';
+import { VendorModal } from './components/VendorModal';
 
 // Custom hook to persist state in localStorage
 function useLocalStorage<T>(key: string, initialValue: T) {
   const [storedValue, setStoredValue] = useState<T>(() => {
     try {
       const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
+      if (item !== null) {
+        return JSON.parse(item);
+      }
+
+      // If item doesn't exist, check if all data was ever deleted.
+      // This handles the edge case where a user clears local storage *after*
+      // using a "delete all" function.
+      const hasBeenWiped = window.localStorage.getItem('app_data_wiped');
+      if (hasBeenWiped === 'true' && Array.isArray(initialValue)) {
+        // If data was wiped, return empty array to prevent mock data reload.
+        return [] as T;
+      }
+
+      return initialValue;
     } catch (error) {
       console.error(error);
       return initialValue;
@@ -45,6 +59,10 @@ const App: React.FC = () => {
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  // State for the unified Vendor Modal
+  const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
+  const [vendorToEdit, setVendorToEdit] = useState<Vendor | null>(null);
 
 
   const salesByVendor = useMemo(() => {
@@ -57,15 +75,62 @@ const App: React.FC = () => {
     }, {} as Record<string, Sale[]>);
   }, [sales]);
 
+  // Create a complete and authoritative payment status list by combining sales data with payment records.
+  // This ensures that any new or updated sale is immediately reflected in the balances.
+  const fullPaymentStatuses = useMemo(() => {
+    // 1. Calculate total commission for each vendor for each month from the 'sales' state.
+    const monthlyCommissions = sales.reduce((acc, sale) => {
+      const key = `${sale.pesquisaId}|${sale.mesAno}`;
+      if (!acc[key]) {
+        acc[key] = 0;
+      }
+      acc[key] += sale.valorAReceber;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // 2. Create a map of existing payment records (paid amounts and history).
+    const paymentData = paymentStatuses.reduce((acc, status) => {
+      const key = `${status.cod}|${status.mes}`;
+      acc[key] = {
+        valorPago: status.valorPago,
+        history: status.history || [],
+      };
+      return acc;
+    }, {} as Record<string, { valorPago: number; history: PaymentRecord[] }>);
+
+    // 3. Combine sales commissions and payment records into a unified list.
+    const allKeys = new Set([...Object.keys(monthlyCommissions), ...Object.keys(paymentData)]);
+
+    const statuses: PaymentStatus[] = Array.from(allKeys).map(key => {
+      const [cod, mes] = key.split('|');
+      
+      const valorTotal = monthlyCommissions[key] || 0;
+      const { valorPago, history } = paymentData[key] || { valorPago: 0, history: [] };
+      const saldo = valorTotal - valorPago;
+
+      return {
+        cod,
+        mes,
+        valorTotal,
+        valorPago,
+        saldo,
+        history,
+      };
+    });
+
+    return statuses;
+  }, [sales, paymentStatuses]);
+
   const paymentStatusByVendor = useMemo(() => {
-    return paymentStatuses.reduce((acc, status) => {
+    return fullPaymentStatuses.reduce((acc, status) => {
       if (!acc[status.cod]) {
         acc[status.cod] = {};
       }
       acc[status.cod][status.mes] = status;
       return acc;
     }, {} as Record<string, Record<string, PaymentStatus>>);
-  }, [paymentStatuses]);
+  }, [fullPaymentStatuses]);
+
 
   const paymentSummaryByVendor = useMemo(() => {
     return paymentSummaries.reduce((acc, summary) => {
@@ -108,54 +173,125 @@ const App: React.FC = () => {
     );
   };
 
-  const handleAddVendor = (newVendor: Vendor) => {
-    setVendors(prev => [...prev, newVendor]);
+  // --- Vendor CRUD Handlers ---
+  const handleOpenAddVendorModal = () => {
+    setVendorToEdit(null);
+    setIsVendorModalOpen(true);
+  };
+
+  const handleOpenEditVendorModal = (vendor: Vendor) => {
+    setVendorToEdit(vendor);
+    setIsVendorModalOpen(true);
   };
   
+  const handleSaveVendor = (vendorData: Vendor) => {
+    if (vendorToEdit) { // Update existing vendor
+        setVendors(prev => prev.map(v => (v.cod === vendorToEdit.cod ? vendorData : v)));
+         if(vendorToEdit.cod !== vendorData.cod) {
+            setSales(prev => prev.map(s => s.pesquisaId === vendorToEdit.cod ? {...s, pesquisaId: vendorData.cod} : s));
+            setPaymentStatuses(prev => prev.map(ps => ps.cod === vendorToEdit.cod ? {...ps, cod: vendorData.cod} : ps));
+            setPaymentSummaries(prev => prev.map(psm => psm.cod === vendorToEdit.cod ? {...psm, cod: vendorData.cod} : psm));
+        }
+        if (selectedVendor && selectedVendor.cod === vendorToEdit.cod) {
+            setSelectedVendor(vendorData);
+        }
+    } else { // Add new vendor
+        setVendors(prev => [...prev, vendorData]);
+    }
+    setIsVendorModalOpen(false);
+  };
+
+  const handleDeleteVendor = (vendorCod: string) => {
+    const hasSales = sales.some(s => s.pesquisaId === vendorCod);
+    if (hasSales) {
+        alert('Não é possível excluir um parceiro com vendas registradas. Por favor, remova as vendas primeiro.');
+        return;
+    }
+    
+    setVendors(prev => prev.filter(v => v.cod !== vendorCod));
+    setSales(prev => prev.filter(s => s.pesquisaId !== vendorCod));
+    setPaymentStatuses(prev => prev.filter(ps => ps.cod !== vendorCod));
+    setPaymentSummaries(prev => prev.filter(ps => ps.cod !== vendorCod));
+    
+    alert('Parceiro excluído com sucesso.');
+    setSelectedVendor(null); // Go back to dashboard view
+  };
+
+  
   const handleRecordPayment = (vendorCod: string, month: string, amount: number, note: string) => {
-     setPaymentStatuses(prevStatuses => {
-        return prevStatuses.map(status => {
-            if (status.cod === vendorCod && status.mes === month) {
-                const newPaidAmount = status.valorPago + amount;
-                const newBalance = status.valorTotal - newPaidAmount;
+    setPaymentStatuses(prevStatuses => {
+      const existingStatusIndex = prevStatuses.findIndex(s => s.cod === vendorCod && s.mes === month);
 
-                const newPaymentRecord: PaymentRecord = {
-                    amount,
-                    note,
-                    date: new Date().toISOString(),
-                };
-
-                return {
-                    ...status,
-                    valorPago: newPaidAmount,
-                    saldo: newBalance < 0 ? 0 : newBalance,
-                    history: [...status.history, newPaymentRecord],
-                };
-            }
-            return status;
-        });
+      const newPaymentRecord: PaymentRecord = {
+        amount,
+        note,
+        date: new Date().toISOString(),
+      };
+      
+      if (existingStatusIndex !== -1) {
+        // Update existing status
+        const updatedStatuses = [...prevStatuses];
+        const oldStatus = updatedStatuses[existingStatusIndex];
+        updatedStatuses[existingStatusIndex] = {
+          ...oldStatus,
+          valorPago: oldStatus.valorPago + amount,
+          history: [...(oldStatus.history || []), newPaymentRecord]
+        };
+        return updatedStatuses;
+      } else {
+        // Add new status if it doesn't exist in the persistent state
+        const newStatus: PaymentStatus = {
+          cod: vendorCod,
+          mes: month,
+          valorTotal: 0, // This is a placeholder; derived state is the source of truth
+          valorPago: amount,
+          saldo: 0,      // This is a placeholder; derived state is the source of truth
+          history: [newPaymentRecord]
+        };
+        return [...prevStatuses, newStatus];
+      }
     });
   };
   
   const handleSettleAll = (vendorCod: string, note: string) => {
+     // Use the derived fullPaymentStatuses to find all pending balances for the vendor
+     const statusesToSettle = fullPaymentStatuses.filter(s => s.cod === vendorCod && s.saldo > 0);
+     if (statusesToSettle.length === 0) return;
+
      setPaymentStatuses(prevStatuses => {
-        return prevStatuses.map(status => {
-            if (status.cod === vendorCod && status.saldo > 0) {
-                 const newPaymentRecord: PaymentRecord = {
-                    amount: status.saldo,
-                    note: note || "Quitação total do saldo.",
-                    date: new Date().toISOString(),
+        let nextStatuses = [...prevStatuses];
+      
+        statusesToSettle.forEach(settleInfo => {
+            const newPaymentRecord: PaymentRecord = {
+                amount: settleInfo.saldo,
+                note: note || `Quitação do saldo de ${settleInfo.mes}.`,
+                date: new Date().toISOString(),
+            };
+
+            const existingIndex = nextStatuses.findIndex(s => s.cod === vendorCod && s.mes === settleInfo.mes);
+
+            if (existingIndex !== -1) {
+                const oldStatus = nextStatuses[existingIndex];
+                nextStatuses[existingIndex] = {
+                    ...oldStatus,
+                    valorPago: oldStatus.valorPago + settleInfo.saldo,
+                    history: [...(oldStatus.history || []), newPaymentRecord]
                 };
-                return {
-                    ...status,
-                    valorPago: status.valorTotal,
+            } else {
+                // If a month had sales but no payment record, create one now
+                nextStatuses.push({
+                    cod: vendorCod,
+                    mes: settleInfo.mes,
+                    valorTotal: 0, 
+                    valorPago: settleInfo.saldo, // The amount paid is the entire pending balance
                     saldo: 0,
-                    history: [...status.history, newPaymentRecord],
-                };
+                    history: [newPaymentRecord]
+                });
             }
-            return status;
-        })
-     })
+        });
+
+        return nextStatuses;
+    });
   };
 
   const handleUpdateObservation = (vendorCod: string, newObservation: string) => {
@@ -195,6 +331,7 @@ const App: React.FC = () => {
     setSales([]);
     setPaymentStatuses([]);
     setPaymentSummaries([]);
+    window.localStorage.setItem('app_data_wiped', 'true'); // Set the wipe flag
     alert('Cadastro de parceiros e dados associados foram limpos com sucesso.');
     setView('dashboard');
   };
@@ -213,6 +350,7 @@ const App: React.FC = () => {
     setSales([]);
     setPaymentStatuses([]);
     setPaymentSummaries([]);
+    window.localStorage.setItem('app_data_wiped', 'true'); // Set the wipe flag
     alert('Todos os dados do sistema foram excluídos com sucesso.');
     setView('dashboard');
   };
@@ -229,6 +367,8 @@ const App: React.FC = () => {
             onAddSale={handleAddSale}
             onUpdateSale={handleUpdateSale}
             onUpdateObservation={handleUpdateObservation}
+            onEdit={handleOpenEditVendorModal}
+            onDelete={handleDeleteVendor}
           />
       );
     }
@@ -244,7 +384,7 @@ const App: React.FC = () => {
         case 'reports':
             return <Reports
                         vendors={vendors}
-                        paymentStatuses={paymentStatuses}
+                        paymentStatuses={fullPaymentStatuses}
                     />;
         case 'settings':
             return isAuthenticated ? <Settings 
@@ -265,13 +405,20 @@ const App: React.FC = () => {
                         salesByVendor={salesByVendor}
                         paymentStatusByVendor={paymentStatusByVendor}
                         onSelectVendor={handleSelectVendor}
-                        onAddVendor={handleAddVendor}
+                        onAddVendor={handleOpenAddVendorModal}
                     />;
     }
   }
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
+      <VendorModal
+        isOpen={isVendorModalOpen}
+        onClose={() => setIsVendorModalOpen(false)}
+        onSave={handleSaveVendor}
+        vendors={vendors}
+        vendorToEdit={vendorToEdit}
+      />
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}

@@ -1,7 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
 import type { Vendor, Sale, PaymentStatus } from '../types';
-import { AddVendorModal } from './AddVendorModal';
 
 interface DashboardProps {
   vendors: Vendor[];
@@ -9,7 +8,7 @@ interface DashboardProps {
   salesByVendor: Record<string, Sale[]>;
   paymentStatusByVendor: Record<string, Record<string, PaymentStatus>>;
   onSelectVendor: (vendor: Vendor) => void;
-  onAddVendor: (vendor: Vendor) => void;
+  onAddVendor: () => void;
 }
 
 const VendorCard: React.FC<{ vendor: Vendor; totalComissao: number; totalSaldo: number; onSelect: () => void; selectedMonth: string }> = ({ vendor, totalComissao, totalSaldo, onSelect, selectedMonth }) => {
@@ -52,7 +51,6 @@ const VendorCard: React.FC<{ vendor: Vendor; totalComissao: number; totalSaldo: 
 export const Dashboard: React.FC<DashboardProps> = ({ vendors, sales, salesByVendor, paymentStatusByVendor, onSelectVendor, onAddVendor }) => {
   const [selectedMonth, setSelectedMonth] = useState('Todos');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isAddVendorModalOpen, setAddVendorModalOpen] = useState(false);
 
   const availableMonths = useMemo(() => {
     const months = new Set(sales.map(sale => sale.mesAno));
@@ -105,18 +103,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ vendors, sales, salesByVen
 
   return (
     <div>
-      <AddVendorModal 
-        isOpen={isAddVendorModalOpen}
-        onClose={() => setAddVendorModalOpen(false)}
-        onSave={onAddVendor}
-      />
       <div className="bg-white p-6 rounded-xl shadow-md mb-8 border border-gray-200">
         <div className="flex flex-wrap justify-between items-center gap-4">
             <div className="flex-1">
                 <h2 className="text-2xl font-bold text-gray-800 mb-2">Visão Geral dos Parceiros</h2>
                 <p className="text-gray-600">Pesquise, filtre ou selecione um parceiro para ver os detalhes.</p>
             </div>
-            <button onClick={() => setAddVendorModalOpen(true)} className="bg-weg-blue text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-800 transition duration-300 flex items-center space-x-2">
+            <button onClick={onAddVendor} className="bg-weg-blue text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-800 transition duration-300 flex items-center space-x-2">
                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
                 </svg>

@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { Vendor, PaymentStatus } from '../types';
 
 interface PaymentsProps {
@@ -25,9 +25,18 @@ const RecordPaymentModal: React.FC<{
 }> = ({ modalInfo, onClose, onSave }) => {
     const [amount, setAmount] = useState<number | ''>('');
     const [note, setNote] = useState('');
+    const [error, setError] = useState('');
 
     const { isOpen, vendor, mode, month, balance, totalBalance } = modalInfo;
     
+    useEffect(() => {
+        if (isOpen) {
+            setAmount('');
+            setNote('');
+            setError('');
+        }
+    }, [isOpen]);
+
     if (!isOpen || !vendor) return null;
 
     const title = mode === 'all' ? `Quitar Saldo Total` : `Registrar Pagamento`;
@@ -35,24 +44,26 @@ const RecordPaymentModal: React.FC<{
     const displayedBalance = mode === 'all' ? totalBalance : balance;
     
     const handleSave = () => {
+        setError(''); // Clear previous error
+
         if (!note.trim()) {
-            alert("O campo de observações é obrigatório.");
+            setError("O campo de observações é obrigatório.");
             return;
         }
 
         if (mode === 'single') {
             const paymentAmount = Number(amount);
-            if (paymentAmount <= 0 || paymentAmount > (balance ?? 0)) {
-                alert("O valor do pagamento deve ser maior que zero e menor ou igual ao saldo.");
+             if (paymentAmount <= 0) {
+                setError("O valor do pagamento deve ser maior que zero.");
                 return;
             }
-             if (window.confirm(`Confirma o pagamento de ${paymentAmount.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} para ${vendor.nome}?`)) {
-                onSave({ amount: paymentAmount, note });
+            if (paymentAmount > (balance ?? 0)) {
+                setError("O valor do pagamento não pode ser maior que o saldo pendente.");
+                return;
             }
+            onSave({ amount: paymentAmount, note });
         } else { // mode === 'all'
-            if (window.confirm(`Confirma a quitação total de ${totalBalance?.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} para ${vendor.nome}?`)) {
-                onSave({ note });
-            }
+            onSave({ note });
         }
     };
 
@@ -76,7 +87,7 @@ const RecordPaymentModal: React.FC<{
                                 id="paymentAmount"
                                 value={amount}
                                 onChange={(e) => setAmount(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                                className="mt-1 block w-full bg-white text-black placeholder-gray-500 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-weg-blue focus:border-weg-blue transition"
+                                className={`mt-1 block w-full bg-white text-black placeholder-gray-500 border ${error.includes('valor') ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-weg-blue focus:border-weg-blue transition`}
                                 placeholder="0,00"
                                 max={balance}
                                 step="0.01"
@@ -90,11 +101,12 @@ const RecordPaymentModal: React.FC<{
                             id="paymentNote"
                             value={note}
                             onChange={(e) => setNote(e.target.value)}
-                            className="mt-1 block w-full bg-white text-black placeholder-gray-500 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-weg-blue focus:border-weg-blue transition"
+                            className={`mt-1 block w-full bg-white text-black placeholder-gray-500 border ${error.includes('observações') ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-weg-blue focus:border-weg-blue transition`}
                             placeholder="Ex: Pagamento via PIX, adiantamento, etc."
                             rows={3}
                         />
                     </div>
+                     {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
                 </div>
                 <div className="p-6 bg-gray-50 flex justify-end space-x-3">
                     <button type="button" onClick={onClose} className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">Cancelar</button>
@@ -240,6 +252,9 @@ export const Payments: React.FC<PaymentsProps> = ({ vendors, paymentStatusByVend
             } else if (modalInfo.mode === 'all') {
                 onSettleAll(modalInfo.vendor.cod, payload.note);
             }
+            alert('Pagamento registrado com sucesso!');
+       } else {
+            alert('Erro ao registrar o pagamento. Tente novamente.');
        }
        handleCloseModal();
     };

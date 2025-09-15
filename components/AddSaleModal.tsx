@@ -7,9 +7,33 @@ interface AddSaleModalProps {
   onSave: (sale: Omit<Sale, 'id' | 'pesquisaId'>) => void;
 }
 
-const getCurrentMonthYear = () => {
+const monthNames = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+
+/**
+ * Generates a list of the last 6 months, the current month, and the next month.
+ * This creates a rolling 8-month window for sale registration.
+ * @returns An array of objects with display ("MON") and value ("MON-YY") properties.
+ */
+const generateMonthOptions = () => {
+    const options: { display: string; value: string }[] = [];
     const now = new Date();
-    const monthNames = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+    
+    // Loop from 6 months ago to 1 month from now.
+    for (let i = -6; i <= 1; i++) {
+        const targetDate = new Date(now.getFullYear(), now.getMonth() + i, 1);
+        const month = monthNames[targetDate.getMonth()];
+        const year = targetDate.getFullYear().toString().slice(-2);
+        options.push({ display: month, value: `${month}-${year}` });
+    }
+    return options;
+};
+
+/**
+ * Gets the current month in "MON-YY" format to be used as the default value.
+ * @returns The current month and year string, e.g., "ABR-25".
+ */
+const getCurrentMonthValue = () => {
+    const now = new Date();
     const month = monthNames[now.getMonth()];
     const year = now.getFullYear().toString().slice(-2);
     return `${month}-${year}`;
@@ -25,11 +49,24 @@ export const AddSaleModal: React.FC<AddSaleModalProps> = ({ isOpen, onClose, onS
     valorBruto: 0,
     valorLiquido: 0,
     comissaoPercentual: 0,
-    mesAno: getCurrentMonthYear(),
+    mesAno: getCurrentMonthValue(),
   };
 
   const [formData, setFormData] = useState(initialFormState);
   const [valorAReceber, setValorAReceber] = useState(0);
+
+  const monthOptions = useMemo(() => generateMonthOptions(), []);
+
+  useEffect(() => {
+    if (isOpen) {
+        // Always reset form and set to current month when modal opens, as per requirements.
+        setFormData({
+            ...initialFormState,
+            mesAno: getCurrentMonthValue(),
+        });
+        setValorAReceber(0);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     const { valorBruto, valorLiquido } = formData;
@@ -56,21 +93,6 @@ export const AddSaleModal: React.FC<AddSaleModalProps> = ({ isOpen, onClose, onS
     setValorAReceber(newValorAReceber);
 
   }, [formData.valorBruto, formData.valorLiquido]);
-
-  const monthOptions = useMemo(() => {
-    const options = [];
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const years = [currentYear - 1, currentYear, currentYear + 1];
-    const monthNames = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
-
-    years.forEach(year => {
-        monthNames.forEach((month) => {
-            options.push(`${month}-${year.toString().slice(-2)}`);
-        });
-    });
-    return options;
-  }, []);
 
 
   if (!isOpen) return null;
@@ -110,10 +132,10 @@ export const AddSaleModal: React.FC<AddSaleModalProps> = ({ isOpen, onClose, onS
                         <input type="text" name="numeroVenda" id="numeroVenda" value={formData.numeroVenda} onChange={handleChange} required className={inputStyle}/>
                     </div>
                     <div>
-                        <label htmlFor="mesAno" className="block text-sm font-medium text-gray-700">Mês/Ano</label>
+                        <label htmlFor="mesAno" className="block text-sm font-medium text-gray-700">Mês</label>
                         <select name="mesAno" id="mesAno" value={formData.mesAno} onChange={handleChange} required className={inputStyle}>
-                           {monthOptions.map(month => (
-                               <option key={month} value={month}>{month}</option>
+                           {monthOptions.map(option => (
+                               <option key={option.value} value={option.value}>{option.display}</option>
                            ))}
                         </select>
                     </div>

@@ -8,6 +8,38 @@ interface EditSaleModalProps {
   sale: Sale | null;
 }
 
+const monthNames = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+
+/**
+ * Generates a list of the last 6 months, the current month, and the next month.
+ * This creates a rolling 8-month window for sale registration.
+ * @returns An array of objects with display ("MON") and value ("MON-YY") properties.
+ */
+const generateMonthOptions = () => {
+    const options: { display: string; value: string }[] = [];
+    const now = new Date();
+    
+    // Loop from 6 months ago to 1 month from now.
+    for (let i = -6; i <= 1; i++) {
+        const targetDate = new Date(now.getFullYear(), now.getMonth() + i, 1);
+        const month = monthNames[targetDate.getMonth()];
+        const year = targetDate.getFullYear().toString().slice(-2);
+        options.push({ display: month, value: `${month}-${year}` });
+    }
+    return options;
+};
+
+/**
+ * Gets the current month in "MON-YY" format to be used as the default value.
+ * @returns The current month and year string, e.g., "ABR-25".
+ */
+const getCurrentMonthValue = () => {
+    const now = new Date();
+    const month = monthNames[now.getMonth()];
+    const year = now.getFullYear().toString().slice(-2);
+    return `${month}-${year}`;
+};
+
 export const EditSaleModal: React.FC<EditSaleModalProps> = ({ isOpen, onClose, onSave, sale }) => {
   const initialFormState = {
     vendedorResponsavel: '',
@@ -23,8 +55,15 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({ isOpen, onClose, o
   const [formData, setFormData] = useState(initialFormState);
   const [valorAReceber, setValorAReceber] = useState(0);
 
+  const monthOptions = useMemo(() => generateMonthOptions(), []);
+
   useEffect(() => {
     if (sale) {
+      const validMonths = monthOptions.map(opt => opt.value);
+      // As per requirements, if the sale's original month is now out of the valid range,
+      // default to the current month. This enforces the new business rule.
+      const saleMonthIsValid = validMonths.includes(sale.mesAno);
+
       setFormData({
         vendedorResponsavel: sale.vendedorResponsavel,
         loja: sale.loja,
@@ -33,12 +72,12 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({ isOpen, onClose, o
         valorBruto: sale.valorBruto,
         valorLiquido: sale.valorLiquido,
         comissaoPercentual: sale.comissaoPercentual,
-        mesAno: sale.mesAno,
+        mesAno: saleMonthIsValid ? sale.mesAno : getCurrentMonthValue(),
       });
     } else {
       setFormData(initialFormState);
     }
-  }, [sale]);
+  }, [sale, monthOptions]);
   
 
   useEffect(() => {
@@ -66,29 +105,6 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({ isOpen, onClose, o
     setValorAReceber(newValorAReceber);
 
   }, [formData.valorBruto, formData.valorLiquido]);
-
-  const monthOptions = useMemo(() => {
-    const options = new Set<string>();
-    if (sale?.mesAno) {
-        options.add(sale.mesAno);
-    }
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const years = [currentYear - 1, currentYear, currentYear + 1];
-    const monthNames = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
-
-    years.forEach(year => {
-        monthNames.forEach((month) => {
-            options.add(`${month}-${year.toString().slice(-2)}`);
-        });
-    });
-    return Array.from(options).sort((a,b) => {
-        const [monthA, yearA] = a.split('-');
-        const [monthB, yearB] = b.split('-');
-        if (yearA !== yearB) return parseInt(yearA) - parseInt(yearB);
-        return monthNames.indexOf(monthA) - monthNames.indexOf(monthB);
-    });
-  }, [sale]);
 
 
   if (!isOpen || !sale) return null;
@@ -126,10 +142,10 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({ isOpen, onClose, o
                         <input type="text" name="numeroVenda" id="edit-numeroVenda" value={formData.numeroVenda} onChange={handleChange} required className={inputStyle}/>
                     </div>
                     <div>
-                        <label htmlFor="edit-mesAno" className="block text-sm font-medium text-gray-700">Mês/Ano</label>
+                        <label htmlFor="edit-mesAno" className="block text-sm font-medium text-gray-700">Mês</label>
                         <select name="mesAno" id="edit-mesAno" value={formData.mesAno} onChange={handleChange} required className={inputStyle}>
-                           {monthOptions.map(month => (
-                               <option key={month} value={month}>{month}</option>
+                           {monthOptions.map(option => (
+                               <option key={option.value} value={option.value}>{option.display}</option>
                            ))}
                         </select>
                     </div>
