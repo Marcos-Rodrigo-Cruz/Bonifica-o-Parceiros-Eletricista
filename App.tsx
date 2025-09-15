@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { Vendor, Sale, PaymentStatus, PaymentSummary, PaymentRecord } from './types';
 import { mockVendors, mockSales, mockPaymentStatus, mockPaymentSummaries } from './data/mockData';
 import { VendorDetail } from './components/VendorDetail';
@@ -53,6 +53,10 @@ const App: React.FC = () => {
   const [sales, setSales] = useLocalStorage<Sale[]>('app_sales', mockSales);
   const [paymentStatuses, setPaymentStatuses] = useLocalStorage<PaymentStatus[]>('app_paymentStatuses', mockPaymentStatus);
   const [paymentSummaries, setPaymentSummaries] = useLocalStorage<PaymentSummary[]>('app_paymentSummaries', mockPaymentSummaries);
+  
+  // State for automatic backup settings
+  const [autoBackupFrequency, setAutoBackupFrequency] = useLocalStorage<number>('app_autoBackupFrequency', 1); // 1 = Daily, 0 = Disabled
+  const [lastAutoBackupTimestamp, setLastAutoBackupTimestamp] = useLocalStorage<number | null>('app_lastAutoBackupTimestamp', null);
   
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [view, setView] = useState<'dashboard' | 'payments' | 'reports' | 'settings'>('dashboard');
@@ -354,6 +358,115 @@ const App: React.FC = () => {
     alert('Todos os dados do sistema foram excluídos com sucesso.');
     setView('dashboard');
   };
+  
+  // Unified export function
+  const exportDataToFile = (isAuto: boolean = false) => {
+    try {
+        const dataToExport = {
+            vendors,
+            sales,
+            paymentStatuses,
+            paymentSummaries
+        };
+        const jsonString = JSON.stringify(dataToExport, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const date = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+        const prefix = isAuto ? 'autobackup' : 'backup';
+        a.href = url;
+        a.download = `${prefix}-bonificacao-${date}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        return true;
+    } catch (error) {
+        console.error("Error during data export:", error);
+        return false;
+    }
+  };
+
+  const handleExportData = () => {
+      if (exportDataToFile(false)) {
+        alert('Backup exportado com sucesso!');
+      } else {
+        alert('Ocorreu um erro ao exportar o backup. Verifique o console para mais detalhes.');
+      }
+  };
+  
+  // Handler for automatic backup process
+  const handleAutoBackup = () => {
+      console.log("Realizando backup automático...");
+      if (exportDataToFile(true)) {
+          setLastAutoBackupTimestamp(Date.now());
+          console.log("Backup automático concluído com sucesso.");
+      } else {
+          console.error("Falha ao realizar backup automático.");
+      }
+  };
+
+  // Effect to run auto-backup check on app load
+  useEffect(() => {
+    if (autoBackupFrequency > 0) { // 0 means disabled
+        const now = Date.now();
+        const frequencyInMillis = autoBackupFrequency * 24 * 60 * 60 * 1000;
+        if (!lastAutoBackupTimestamp || (now - lastAutoBackupTimestamp > frequencyInMillis)) {
+            handleAutoBackup();
+        }
+    }
+  }, []); // Run only once on app load
+
+
+  const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!window.confirm('Tem certeza que deseja importar este arquivo? Todos os dados atuais serão substituídos. Esta ação não pode ser desfeita.')) {
+        event.target.value = ''; // Reset file input
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const text = e.target?.result;
+            if (typeof text !== 'string') throw new Error('File content is not a string.');
+            
+            const data = JSON.parse(text);
+
+            // Basic validation
+            if (!data.vendors || !data.sales || !data.paymentStatuses || !data.paymentSummaries) {
+                throw new Error('Arquivo de backup inválido ou corrompido.');
+            }
+
+            setVendors(data.vendors);
+            setSales(data.sales);
+            setPaymentStatuses(data.paymentStatuses);
+            setPaymentSummaries(data.paymentSummaries);
+            
+            // If we successfully import, it means we don't want mock data to reload,
+            // even if the imported data is empty. So we ensure the wipe flag is handled.
+            if (data.vendors.length === 0 && data.sales.length === 0) {
+                 window.localStorage.setItem('app_data_wiped', 'true');
+            } else {
+                 window.localStorage.removeItem('app_data_wiped');
+            }
+
+            alert('Dados importados com sucesso! A página será atualizada.');
+            window.location.reload();
+
+        } catch (error) {
+            console.error("Error importing data:", error);
+            alert(`Erro ao importar o arquivo: ${error instanceof Error ? error.message : 'Verifique o console para mais detalhes.'}`);
+        }
+    };
+    reader.onerror = () => {
+        alert('Erro ao ler o arquivo.');
+    };
+    reader.readAsText(file);
+    event.target.value = ''; // Reset file input
+  };
 
   const renderContent = () => {
     if (selectedVendor) {
@@ -391,6 +504,11 @@ const App: React.FC = () => {
                 onClearVendors={handleClearVendors}
                 onResetCommissions={handleResetCommissions}
                 onDeleteAllData={handleDeleteAllData}
+                onExportData={handleExportData}
+                onImportData={handleImportData}
+                autoBackupFrequency={autoBackupFrequency}
+                onSetAutoBackupFrequency={setAutoBackupFrequency}
+                lastAutoBackupTimestamp={lastAutoBackupTimestamp}
             /> : (
                 <div className="text-center p-8 bg-white rounded-lg shadow-md">
                     <h2 className="text-2xl font-bold text-red-600">Acesso Negado</h2>

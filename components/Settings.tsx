@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useRef } from 'react';
 
 // A simple card component for grouping settings
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
@@ -82,15 +83,31 @@ interface SettingsProps {
     onClearVendors: () => void;
     onResetCommissions: () => void;
     onDeleteAllData: () => void;
+    onExportData: () => void;
+    onImportData: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    autoBackupFrequency: number;
+    onSetAutoBackupFrequency: (days: number) => void;
+    lastAutoBackupTimestamp: number | null;
 }
 
 
-export const Settings: React.FC<SettingsProps> = ({ onClearVendors, onResetCommissions, onDeleteAllData }) => {
+export const Settings: React.FC<SettingsProps> = ({ 
+    onClearVendors, 
+    onResetCommissions, 
+    onDeleteAllData, 
+    onExportData, 
+    onImportData,
+    autoBackupFrequency,
+    onSetAutoBackupFrequency,
+    lastAutoBackupTimestamp
+}) => {
     // State for password change
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [passwordMessage, setPasswordMessage] = useState({ type: '', text: '' });
+    
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // State for default commission
     const [defaultCommission, setDefaultCommission] = useState(1.0);
@@ -171,6 +188,71 @@ export const Settings: React.FC<SettingsProps> = ({ onClearVendors, onResetCommi
                  <p className="text-gray-600 mt-2">Gerencie as configurações globais da aplicação.</p>
             </div>
             
+             <SettingsCard title="Backup e Restauração de Dados">
+                <div className="space-y-4">
+                    <div className="flex flex-col md:flex-row justify-between items-center p-4 rounded-lg bg-gray-50 border">
+                        <div className="flex-1 mb-2 md:mb-0 md:mr-4">
+                            <p className="text-gray-700 font-medium">Exportar Dados (Backup Manual)</p>
+                            <p className="text-sm text-gray-500">
+                                Salva todos os dados atuais em um arquivo <strong>.json</strong>. Guarde este arquivo em um local seguro.
+                            </p>
+                        </div>
+                        <button onClick={onExportData} className="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-300 w-full md:w-auto flex-shrink-0 flex items-center justify-center space-x-2">
+                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                            <span>Fazer Backup</span>
+                        </button>
+                    </div>
+                     <div className="flex flex-col md:flex-row justify-between items-center p-4 rounded-lg bg-gray-50 border">
+                         <div className="flex-1 mb-2 md:mb-0 md:mr-4">
+                            <p className="text-gray-700 font-medium">Importar Dados (Restaurar)</p>
+                            <p className="text-sm text-gray-500">
+                                Carrega dados de um arquivo de backup <strong>.json</strong>. <strong className="text-red-600">Atenção:</strong> Isso substituirá todos os dados existentes.
+                            </p>
+                        </div>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={onImportData}
+                            className="hidden"
+                            accept=".json"
+                        />
+                        <button onClick={() => fileInputRef.current?.click()} className="bg-weg-blue text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-800 transition duration-300 w-full md:w-auto flex-shrink-0 flex items-center justify-center space-x-2">
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.293a1 1 0 011.414 0L10 8.586l2.293-2.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                            <span>Restaurar Backup</span>
+                        </button>
+                    </div>
+                </div>
+                 <div className="pt-4 mt-4 border-t">
+                    <h4 className="text-lg font-bold text-blue-800">Backup Automático</h4>
+                    <p className="text-sm text-blue-700 mt-1">
+                        O sistema pode salvar um backup automaticamente na inicialização, se o período definido tiver passado. O arquivo será baixado no seu dispositivo.
+                    </p>
+                    
+                    <div className="mt-4">
+                        <label htmlFor="auto-backup-freq" className="block text-sm font-medium text-gray-700">Frequência do Backup</label>
+                        <select 
+                            id="auto-backup-freq"
+                            value={autoBackupFrequency}
+                            onChange={(e) => onSetAutoBackupFrequency(Number(e.target.value))}
+                            className={`${inputStyle} max-w-xs`}
+                        >
+                            <option value="0">Desativado</option>
+                            <option value="1">Diariamente</option>
+                            <option value="7">Semanalmente</option>
+                            <option value="30">Mensalmente</option>
+                        </select>
+                    </div>
+
+                    <p className="text-xs text-gray-500 mt-2">
+                        Último backup automático: {lastAutoBackupTimestamp ? new Date(lastAutoBackupTimestamp).toLocaleString('pt-BR') : 'Nunca'}
+                    </p>
+                </div>
+            </SettingsCard>
+
             <SettingsCard title="Alterar Senha do Administrador">
                 <form onSubmit={handlePasswordUpdate} className="space-y-4">
                     <div>
@@ -196,37 +278,6 @@ export const Settings: React.FC<SettingsProps> = ({ onClearVendors, onResetCommi
                         </p>
                     )}
                 </form>
-            </SettingsCard>
-
-            <SettingsCard title="Definir Comissão Padrão">
-                <div>
-                     <label className="block text-sm font-medium text-gray-700">Comissão Padrão (%)</label>
-                     <input type="number" step="0.01" value={defaultCommission} onChange={e => setDefaultCommission(parseFloat(e.target.value))} className={inputStyle} />
-                     <p className="text-xs text-gray-500 mt-1">Essa comissão será aplicada automaticamente a novos parceiros.</p>
-                </div>
-                 <div className="text-right">
-                    <button className="bg-weg-blue text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-800 transition duration-300">
-                        Salvar Comissão
-                    </button>
-                </div>
-            </SettingsCard>
-            
-            <SettingsCard title="Configurações de Notificação">
-                <div className="space-y-2">
-                    <label className="flex items-center space-x-3 cursor-pointer">
-                        <input type="checkbox" checked={emailNotifications} onChange={() => setEmailNotifications(!emailNotifications)} className="h-4 w-4 text-weg-blue border-gray-300 rounded focus:ring-weg-blue" />
-                        <span className="text-gray-700">Ativar notificações por e-mail</span>
-                    </label>
-                    <label className="flex items-center space-x-3 cursor-pointer">
-                        <input type="checkbox" checked={whatsappNotifications} onChange={() => setWhatsappNotifications(!whatsappNotifications)} className="h-4 w-4 text-weg-blue border-gray-300 rounded focus:ring-weg-blue" />
-                        <span className="text-gray-700">Ativar notificações por WhatsApp</span>
-                    </label>
-                </div>
-                 <div className="text-right pt-4 border-t">
-                    <button className="bg-weg-blue text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-800 transition duration-300">
-                        Salvar Preferências
-                    </button>
-                </div>
             </SettingsCard>
 
             <SettingsCard title="Redefinição de Dados">
