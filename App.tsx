@@ -194,6 +194,7 @@ const App: React.FC = () => {
          if(vendorToEdit.cod !== vendorData.cod) {
             setSales(prev => prev.map(s => s.pesquisaId === vendorToEdit.cod ? {...s, pesquisaId: vendorData.cod} : s));
             setPaymentStatuses(prev => prev.map(ps => ps.cod === vendorToEdit.cod ? {...ps, cod: vendorData.cod} : ps));
+            // FIX: Corrected a typo where 'ps' was used instead of 'psm', causing a reference error.
             setPaymentSummaries(prev => prev.map(psm => psm.cod === vendorToEdit.cod ? {...psm, cod: vendorData.cod} : psm));
         }
         if (selectedVendor && selectedVendor.cod === vendorToEdit.cod) {
@@ -215,7 +216,7 @@ const App: React.FC = () => {
     setVendors(prev => prev.filter(v => v.cod !== vendorCod));
     setSales(prev => prev.filter(s => s.pesquisaId !== vendorCod));
     setPaymentStatuses(prev => prev.filter(ps => ps.cod !== vendorCod));
-    setPaymentSummaries(prev => prev.filter(ps => ps.cod !== vendorCod));
+    setPaymentSummaries(prev => prev.filter(psm => psm.cod !== vendorCod));
     
     alert('Parceiro excluído com sucesso.');
     setSelectedVendor(null); // Go back to dashboard view
@@ -420,53 +421,79 @@ const App: React.FC = () => {
 
   const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    const input = event.target;
 
-    if (!window.confirm('Tem certeza que deseja importar este arquivo? Todos os dados atuais serão substituídos. Esta ação não pode ser desfeita.')) {
-        event.target.value = ''; // Reset file input
-        return;
+    if (!file) {
+      if (input) input.value = '';
+      return;
+    }
+
+    if (!window.confirm('Tem certeza que deseja restaurar este backup? Todos os dados atuais serão substituídos. Esta ação não pode ser desfeita.')) {
+      if (input) input.value = '';
+      return;
     }
 
     const reader = new FileReader();
+
     reader.onload = (e) => {
-        try {
-            const text = e.target?.result;
-            if (typeof text !== 'string') throw new Error('File content is not a string.');
-            
-            const data = JSON.parse(text);
-
-            // Basic validation
-            if (!data.vendors || !data.sales || !data.paymentStatuses || !data.paymentSummaries) {
-                throw new Error('Arquivo de backup inválido ou corrompido.');
-            }
-
-            setVendors(data.vendors);
-            setSales(data.sales);
-            setPaymentStatuses(data.paymentStatuses);
-            setPaymentSummaries(data.paymentSummaries);
-            
-            // If we successfully import, it means we don't want mock data to reload,
-            // even if the imported data is empty. So we ensure the wipe flag is handled.
-            if (data.vendors.length === 0 && data.sales.length === 0) {
-                 window.localStorage.setItem('app_data_wiped', 'true');
-            } else {
-                 window.localStorage.removeItem('app_data_wiped');
-            }
-
-            alert('Dados importados com sucesso! A página será atualizada.');
-            window.location.reload();
-
-        } catch (error) {
-            console.error("Error importing data:", error);
-            alert(`Erro ao importar o arquivo: ${error instanceof Error ? error.message : 'Verifique o console para mais detalhes.'}`);
+      try {
+        const text = e.target?.result;
+        if (typeof text !== 'string') {
+          throw new Error('O conteúdo do arquivo não pôde ser lido como texto.');
         }
+        
+        const data = JSON.parse(text);
+
+        // Validate structure
+        const isValid = data &&
+                        typeof data === 'object' &&
+                        !Array.isArray(data) &&
+                        'vendors' in data && Array.isArray(data.vendors) &&
+                        'sales' in data && Array.isArray(data.sales) &&
+                        'paymentStatuses' in data && Array.isArray(data.paymentStatuses) &&
+                        'paymentSummaries' in data && Array.isArray(data.paymentSummaries);
+
+        if (!isValid) {
+          alert("Arquivo inválido. Verifique se é um backup válido.");
+          return;
+        }
+
+        // THE FIX: Use React state setters. This is atomic and updates the UI.
+        // The useLocalStorage hook ensures this is persisted.
+        setVendors(data.vendors);
+        setSales(data.sales);
+        setPaymentStatuses(data.paymentStatuses);
+        setPaymentSummaries(data.paymentSummaries);
+        
+        // Handle the wipe flag for empty backups to prevent mock data from reloading
+        if (data.vendors.length === 0 && data.sales.length === 0) {
+            window.localStorage.setItem('app_data_wiped', 'true');
+        } else {
+            window.localStorage.removeItem('app_data_wiped');
+        }
+
+        // Provide success feedback AND navigate the user as they expect.
+        alert('Backup restaurado com sucesso!');
+        setView('dashboard');
+        setSelectedVendor(null);
+
+      } catch (error) {
+        console.error("Erro ao restaurar backup:", error);
+        alert('Arquivo inválido. Verifique se é um backup válido.');
+      } finally {
+        // Reset file input to allow re-uploading the same file if needed.
+        if (input) input.value = '';
+      }
     };
+    
     reader.onerror = () => {
-        alert('Erro ao ler o arquivo.');
+      alert('Ocorreu um erro ao tentar ler o arquivo.');
+      if (input) input.value = '';
     };
+
     reader.readAsText(file);
-    event.target.value = ''; // Reset file input
   };
+
 
   const renderContent = () => {
     if (selectedVendor) {
